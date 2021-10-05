@@ -49,6 +49,8 @@
 
 ## 3.2. 프로젝트에 Spring Data Jpa 적용
 
+### Spring Data Jpa 적용
+
 1. **[build.gradle]** 의존성 등록
     
     ```java
@@ -60,10 +62,10 @@
     ```
     
 
-1. **[com.jojoldu.book.springboot/domain]** 패키지 생성
+2. **[com.jojoldu.book.springboot/domain]** 패키지 생성
     - 도메인을 담을 패키지
 
-1. **[domain/posts/Posts]** 패키지, 클래스 생성
+3. **[domain/posts/Posts]** 패키지, 클래스 생성
     - code
         
         ```java
