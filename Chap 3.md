@@ -272,3 +272,75 @@ application.properties 파일에
 > spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL5InnoDBDialect
 
 추가하기
+
+
+
+
+
+
+## 3.5. JPA Auditing으로 생성시간/수정시간 자동화하기
+-entity: 생성, 수정시간 포함.
+-모든 테이블과 서비스 메소드에 날짜 데이터 등록, 수정하는 코드 포함하려면 힘듦 -> JPA Auditing 사용
+
+### LocalDate
+Java8부터는 LocalDate와 LocalDateTime이 등장. Java의 기본 날짜 타입인 Date의 문제점을 고친 타입이라서 Java8부터는 무조건 써야 함.
+
+-domain 패키지에 BaseTimeEntity 클래스 생성 
+```java
+@Getter
+@MappedSuperclass //jpa entity 클래스들이 BaseTimeEntity을 상속할 경우 필드들(createdData,modifiedData)도 칼럼으로 인식하도록 함
+@EntityListeners(AuditingEntityListener.class)//BaseTimeEntity 클래스에 Auditing 기능을 포함시킨다.
+
+// 모든 Entity의 상위 클라스 -> Entity들의 createdDate, modifiedDate를 자동으로 관리하는 역할
+public abstract class BaseTimeEntity {
+
+    @CreatedDate//엔티티가 생성되어 저장될 떄의 시간이 자동 저장
+    private LocalDateTime createdData;
+
+    @LastModifiedDate//조회한 엔티티의 값을 변경할 떄의 시간이 자동 저장된다.
+    private LocalDateTime modifiedData;
+}
+```
+
+-Board 클래스가 BaseTimeEntity를 상속받을 수 있도록 변경
+```java
+	...
+public class Board extends BaseTimeEntity {
+	...
+}
+```
+
+-JPA Auditing 어노테이션들을 모두 활성화하기 위해 Application 클래스에 활성화 어노테이션을 추가
+```java
+@EnableJpaAuditing//JPA Auditing 활성화
+@SpringBootApplication
+public class Application {
+	public static void main(String[] args) {
+		SpringApplication.run(Application.class, args);
+	}
+}
+```
+
+### JPA Auditing 테스트 코드 작성하기
+```java
+@Test
+    public void BaseTimeEntity_등록() {
+        //given
+        LocalDateTime now = LocalDateTime.of(2019, 6, 4, 0, 0, 0);
+        postsRepository.save(Posts.builder()
+                .title("title")
+                .content("content")
+                .author("author")
+                .build());
+        //when
+        List<Posts> postsList = postsRepository.findAll();
+
+        //then
+        Posts posts = postsList.get(0);
+
+        System.out.println(">>>>>>>>> createDate=" + posts.getCreateDate() + ", modifiedDate=" + posts.getModifiedDate());
+
+        assertThat(posts.getCreateDate()).isAfter(now);
+        assertThat(posts.getModifiedDate()).isAfter(now);
+    }
+```
