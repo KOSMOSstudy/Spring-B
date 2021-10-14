@@ -597,7 +597,7 @@ H2를 사용하기 위해선 웹 콘솔을 사용해야 한다.
 application.properties 설정 
 
 ```
-spring.h2.console.enable=true
+spring.h2.console.enabled=true
 ```
 ## 3.5. JPA Auditing으로 생성시간/수정시간 자동화하기
 - entity: 생성, 수정시간 포함.
