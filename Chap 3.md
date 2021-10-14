@@ -286,29 +286,28 @@ application.properties 파일에
   
   Web Layer
  : 흔히 사용하는 컨트롤러와 jsp등의 뷰템플릿 영역
-   필터,인터셉터,컨트롤러 어드바이스 등 외부 요청과 응답에 대한 전반적인 영역을 이야기함 
+   필터,인터셉터,컨트롤러 어드바이스 등 외부 요청과 응답에 대한 전반적인 영역을 이야기함 <br>
    <br>
  Service Layer 
  : @Service에 사용되는 서비스 영역 
    일반적으로 Controller와 Dao의 중간 영역에서 사용된다.
-   @Transactional이 사용되어야 하는 영역 
-   <br>
+   @Transactional이 사용되어야 하는 영역 <br>
  Repository Layer 
  : Database와 같이 데이터 저장소에 접근하는 영역 
-   기존의 Dao 영역으로 이해하면 편하다.
+   기존의 Dao 영역으로 이해하면 편하다.<br>
    <br>
  Dtos 
  : Dto는 계층 간에 데이터 교환을 위한 객체를 이야기한다.
-   Dtos는 이들의 영역을 얘기함 
+   Dtos는 이들의 영역을 얘기함 <br>
    <br>
  Domain Model 
  : 도메인이라 불리는 개발 대상을 모든 사람이 동일한 관점에서 이해할 수 있고 공유할 수 있도록 단순화 시킨 것을 도메인 모델이라 한다.
    @Entity도 도메인 모델이다.
-   무조건 데이터베이스의 테이블과 연관이 있어야 하는 것은 아니다.
-   
+   무조건 데이터베이스의 테이블과 연관이 있어야 하는 것은 아니다.<br>
+   <br>
    Web,Service,Reposiroty,Dto,Domain 이 5가지 레이어에서 비지니스 처리를 담당해야 하는 곳은 Domain이다.
    
-   기존에 서비스로 비지니스 처리하던 방식을 트랜잭션 스크립트라고 한다.
+   기존에 서비스로 비지니스 처리하던 방식을 트랜잭션 스크립트라고 한다.<br>
    <br>
    트랜잭션 스크립트 
    : 모든 로직이 서비스 클래스 내부에서 처리됨 
@@ -597,7 +596,8 @@ H2를 사용하기 위해선 웹 콘솔을 사용해야 한다.
 
 application.properties 설정 
 
-```spring.h2.console.enable=true
+```
+spring.h2.console.enable=true
 ```
 ## 3.5. JPA Auditing으로 생성시간/수정시간 자동화하기
 - entity: 생성, 수정시간 포함.
