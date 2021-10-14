@@ -279,13 +279,13 @@ application.properties 파일에
 
 
 ## 3.5. JPA Auditing으로 생성시간/수정시간 자동화하기
--entity: 생성, 수정시간 포함.
--모든 테이블과 서비스 메소드에 날짜 데이터 등록, 수정하는 코드 포함하려면 힘듦 -> JPA Auditing 사용
+- entity: 생성, 수정시간 포함.
+- 모든 테이블과 서비스 메소드에 날짜 데이터 등록, 수정하는 코드 포함하려면 힘듦 -> JPA Auditing 사용
 
 ### LocalDate
 Java8부터는 LocalDate와 LocalDateTime이 등장. Java의 기본 날짜 타입인 Date의 문제점을 고친 타입이라서 Java8부터는 무조건 써야 함.
 
--domain 패키지에 BaseTimeEntity 클래스 생성 
+- domain 패키지에 BaseTimeEntity 클래스 생성 
 ```java
 @Getter
 @MappedSuperclass //jpa entity 클래스들이 BaseTimeEntity을 상속할 경우 필드들(createdData,modifiedData)도 칼럼으로 인식하도록 함
@@ -302,7 +302,7 @@ public abstract class BaseTimeEntity {
 }
 ```
 
--Board 클래스가 BaseTimeEntity를 상속받을 수 있도록 변경
+- Board 클래스가 BaseTimeEntity를 상속받을 수 있도록 변경
 ```java
 	...
 public class Board extends BaseTimeEntity {
@@ -310,7 +310,7 @@ public class Board extends BaseTimeEntity {
 }
 ```
 
--JPA Auditing 어노테이션들을 모두 활성화하기 위해 Application 클래스에 활성화 어노테이션을 추가
+- JPA Auditing 어노테이션들을 모두 활성화하기 위해 Application 클래스에 활성화 어노테이션을 추가
 ```java
 @EnableJpaAuditing//JPA Auditing 활성화
 @SpringBootApplication
