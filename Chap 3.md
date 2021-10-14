@@ -287,20 +287,20 @@ application.properties 파일에
   Web Layer
  : 흔히 사용하는 컨트롤러와 jsp등의 뷰템플릿 영역
    필터,인터셉터,컨트롤러 어드바이스 등 외부 요청과 응답에 대한 전반적인 영역을 이야기함 
-   
+   <br>
  Service Layer 
  : @Service에 사용되는 서비스 영역 
    일반적으로 Controller와 Dao의 중간 영역에서 사용된다.
    @Transactional이 사용되어야 하는 영역 
-   
+   <br>
  Repository Layer 
  : Database와 같이 데이터 저장소에 접근하는 영역 
    기존의 Dao 영역으로 이해하면 편하다.
-   
+   <br>
  Dtos 
  : Dto는 계층 간에 데이터 교환을 위한 객체를 이야기한다.
    Dtos는 이들의 영역을 얘기함 
-   
+   <br>
  Domain Model 
  : 도메인이라 불리는 개발 대상을 모든 사람이 동일한 관점에서 이해할 수 있고 공유할 수 있도록 단순화 시킨 것을 도메인 모델이라 한다.
    @Entity도 도메인 모델이다.
@@ -309,7 +309,7 @@ application.properties 파일에
    Web,Service,Reposiroty,Dto,Domain 이 5가지 레이어에서 비지니스 처리를 담당해야 하는 곳은 Domain이다.
    
    기존에 서비스로 비지니스 처리하던 방식을 트랜잭션 스크립트라고 한다.
-   
+   <br>
    트랜잭션 스크립트 
    : 모든 로직이 서비스 클래스 내부에서 처리됨 
      서비스 계층이 무의미하며, 객체란 단순히 데이터 덩어리 역할만 한다.
@@ -431,19 +431,23 @@ PostsApiController
 public class PostsApiController {
     private final PostsService postsService;
 
-    @PostMapping("api/v1/posts")
-    public Long save(@RequestBody PostsSaveRequestDto requestDto){
-        return postsService.save(requestDto);
+    ...
+
+    @PutMapping("/api/v1/posts/{id}")
+    public Long update(@PathVariable Long id, @RequestBody PostsUpdateRequestDto requestDto){
+        return postsService.update(id,requestDto);
     }
 
-       @GetMapping("api/v1/posts/{id}")
-    public PostsResponseDto findById(@PathVariable Long id){
+    @GetMapping("/api/v1/posts/{id}")
+    public PostsResponseDto findByID (@PathVariable Long id)
+    {
         return postsService.findById(id);
     }
 }
+```
 
 PostsResponseDto
-```
+
 @Getter
 public class PostsResponseDto {
     private Long id;
@@ -517,10 +521,8 @@ PostsService
 public class PostsService {
     private final PostsRepository postsRepository;
 
-    @Transactional
-    public Long save(PostsSaveRequestDto requestDto){
-        return postsRepository.save(requestDto.toEntity()).getId();
-    }
+    ...
+    
     @Transactional
     public Long update(Long id , PostsUpdateRequestDto requestDto){
         Posts posts=postsRepository.findById(id)
@@ -543,6 +545,60 @@ public class PostsService {
 
 ```
 
+### 수정/조회 테스트 코드 
+
+```
+@RunWith(SpringRunner.class)
+@SpringBootTest(webEnvironment =SpringBootTest.WebEnvironment.RANDOM_PORT)
+public class PostsApiControllerTest {
+
+    ...
+
+    @Test
+    public void Posts_수정된다() throws Exception{
+        //given
+        Posts savedPosts=postsRepository.save(Posts.builder()
+                        .title("title")
+                        .content("content")
+                        .author("author")
+                        .build());
+
+        Long updateId= savedPosts.getId();
+        String expectedTitle="title2";
+        String expectedContent="content2";
+
+        PostsUpdateRequestDto requestDto=
+                PostsUpdateRequestDto.builder()
+                        .title(expectedTitle)
+                        .content(expectedContent)
+                        .build();
+        String url = "http://localhost:" + port+"/api/v1/posts/"+updateId;
+
+        HttpEntity<PostsUpdateRequestDto> requestEntity =new HttpEntity<>(requestDto);
+
+        //when
+        ResponseEntity<Long> responseEntity=restTemplate.exchange(url,HttpMethod.PUT,requestEntity,Long.class);
+
+        //then
+        assertThat(responseEntity.getStatusCode()).
+                isEqualTo(HttpStatus.OK);
+        assertThat(responseEntity.getBody()).
+                isGreaterThan(0L);
+        List<Posts> all = postsRepository.findAll();
+        assertThat(all.get(0).getTitle()).isEqualTo(expectedTitle);
+        assertThat(all.get(0).getContent()).isEqualTo(expectedContent);
+
+
+    }
+}
+```
+
+H2를 사용하기 위해선 웹 콘솔을 사용해야 한다. 
+
+application.properties 설정 
+
+```spring.h2.console.enable=true
+```
 ## 3.5. JPA Auditing으로 생성시간/수정시간 자동화하기
 - entity: 생성, 수정시간 포함.
 - 모든 테이블과 서비스 메소드에 날짜 데이터 등록, 수정하는 코드 포함하려면 힘듦 -> JPA Auditing 사용
