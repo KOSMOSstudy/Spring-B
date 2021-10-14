@@ -273,10 +273,275 @@ application.properties 파일에
 
 추가하기
 
+## 3.4. 등록/수정/조회 API 만들기 
+
+### API를 만들기 위해선 총 3개의 클래스가 필요하다.
+
+  1. Request 데이터 받을 DTO 
+  2. API 요청을 받을 Controller 
+  3. 트랜잭션,도메인 기능 간의 순서를 보장하는 Service 
+  ( Service는 비지니스 로직을 처리하지 않는다. 트랜잭션,도메인 간 순서 보장의 역할만 한다.)
+  
+  spring 웹 계층 
+  
+  Web Layer
+ : 흔히 사용하는 컨트롤러와 jsp등의 뷰템플릿 영역
+   필터,인터셉터,컨트롤러 어드바이스 등 외부 요청과 응답에 대한 전반적인 영역을 이야기함 
+   
+ Service Layer 
+ : @Service에 사용되는 서비스 영역 
+   일반적으로 Controller와 Dao의 중간 영역에서 사용된다.
+   @Transactional이 사용되어야 하는 영역 
+   
+ Repository Layer 
+ : Database와 같이 데이터 저장소에 접근하는 영역 
+   기존의 Dao 영역으로 이해하면 편하다.
+   
+ Dtos 
+ : Dto는 계층 간에 데이터 교환을 위한 객체를 이야기한다.
+   Dtos는 이들의 영역을 얘기함 
+   
+ Domain Model 
+ : 도메인이라 불리는 개발 대상을 모든 사람이 동일한 관점에서 이해할 수 있고 공유할 수 있도록 단순화 시킨 것을 도메인 모델이라 한다.
+   @Entity도 도메인 모델이다.
+   무조건 데이터베이스의 테이블과 연관이 있어야 하는 것은 아니다.
+   
+   Web,Service,Reposiroty,Dto,Domain 이 5가지 레이어에서 비지니스 처리를 담당해야 하는 곳은 Domain이다.
+   
+   기존에 서비스로 비지니스 처리하던 방식을 트랜잭션 스크립트라고 한다.
+   
+   트랜잭션 스크립트 
+   : 모든 로직이 서비스 클래스 내부에서 처리됨 
+     서비스 계층이 무의미하며, 객체란 단순히 데이터 덩어리 역할만 한다.
+     
+   하지만 도메인에서 비지니스 처리를 할 경우 
+   서비스 메소드는 트랜잭션과 도메인 간의 순서만 보장해 준다.
+   
+### 등록 코드
+PostsApiController
+```
+@RequiredArgsConstructor
+@RestController
+public class PostsApiController {
+    private final PostsService postsService;
+
+    @PostMapping("api/v1/posts")
+    public Long save(@RequestBody PostsSaveRequestDto requestDto){
+        return postsService.save(requestDto);
+    }
+}
+
+PostsService
+```
+@RequiredArgsConstructor
+@Service
+public class PostsService {
+    private final PostsRepository postsRepository;
+
+    @Transactional
+    public Long save(PostsSaveRequestDto requestDto){
+        return postsRepository.save(requestDto.toEntity()).getId();
+    }
+}
+
+PostsSaveRequestDto
+```
+@Getter
+@NoArgsConstructor
+public class PostsSaveRequestDto {
+    private String title;
+    private String content;
+    private String author;
+
+    @Builder
+    public PostsSaveRequestDto(String title,String content,String author){
+        this.title=title;
+        this.content=content;
+        this.author=author;
+    }
+    public Posts toEntity() {
+        return Posts.builder()
+                .title(title)
+                .content(content)
+                .author(author)
+                .build();
+    }
+}
+```
 
 
+### 등록 테스트 코드
+
+PostsApiControllerTest
+```
+@RunWith(SpringRunner.class)
+@SpringBootTest(webEnvironment =SpringBootTest.WebEnvironment.RANDOM_PORT)
+public class PostsApiControllerTest {
+
+    @LocalServerPort
+    private int port;
+
+    @Autowired
+    private TestRestTemplate restTemplate;
+
+    @Autowired
+    private PostsRepository postsRepository;
+
+    @After
+    public void tearDown() throws Exception{
+        postsRepository.deleteAll();
+    }
+
+    @Test
+    public void Posts_등록된다() throws Exception{
+        //given
+        String title ="title";
+        String content ="content";
+        PostsSaveRequestDto requestDto = PostsSaveRequestDto.builder()
+                .title(title)
+                .content(content)
+                .author("author")
+                .build();
+
+        String url="http://localhost:"+port+"/api/v1/posts";
+
+        //when
+        ResponseEntity<Long> responseEntity=restTemplate.
+                postForEntity(url,requestDto,Long.class);
+
+        //then
+        assertThat(responseEntity.getStatusCode()).
+                isEqualTo(HttpStatus.OK);
+        assertThat(responseEntity.getBody()).
+                isGreaterThan(0L);
+        List<Posts> all = postsRepository.findAll();
+        assertThat(all.get(0).getTitle()).isEqualTo(title);
+        assertThat(all.get(0).getContent()).isEqualTo(content);
+    }
+}
+
+```
+
+### 수정/조회 코드 
+
+PostsApiController
+```
+@RequiredArgsConstructor
+@RestController
+public class PostsApiController {
+    private final PostsService postsService;
+
+    @PostMapping("api/v1/posts")
+    public Long save(@RequestBody PostsSaveRequestDto requestDto){
+        return postsService.save(requestDto);
+    }
+
+       @GetMapping("api/v1/posts/{id}")
+    public PostsResponseDto findById(@PathVariable Long id){
+        return postsService.findById(id);
+    }
+}
+
+PostsResponseDto
+```
+@Getter
+public class PostsResponseDto {
+    private Long id;
+    private String title;
+    private String content;
+    private String author;
+
+    public PostsResponseDto(Posts entity){
+        this.id=entity.getId();
+        this.title=entity.getTitle();
+        this.content=entity.getContent();
+        this.author=entity.getAuthor();
+    }
+}
+
+PostsUpdateRequestDto
+
+```
+@Getter
+@NoArgsConstructor
+public class PostsUpdateRequestDto {
+    private String title;
+    private String content;
+
+    @Builder
+    public PostsUpdateRequestDto(String title,String content){
+        this.title=title;
+        this.content=content;
+    }
+}
+```
+
+Posts
+```
+@Getter
+@NoArgsConstructor
+@Entity
+public class Posts {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(length = 500,nullable = false)
+    private String title;
+
+    @Column(columnDefinition = "TEXT",nullable = false)
+    private String content;
+
+    private String author;
+
+    @Builder
+    public Posts(String title,String content,String author){
+        this.title=title;
+        this.content=content;
+        this.author=author;
+    }
+
+    public void update(String title,String content){
+        this.title=title;
+        this.content=content;
+    }
 
 
+}
+```
+
+PostsService
+```
+@RequiredArgsConstructor
+@Service
+public class PostsService {
+    private final PostsRepository postsRepository;
+
+    @Transactional
+    public Long save(PostsSaveRequestDto requestDto){
+        return postsRepository.save(requestDto.toEntity()).getId();
+    }
+    @Transactional
+    public Long update(Long id , PostsUpdateRequestDto requestDto){
+        Posts posts=postsRepository.findById(id)
+                .orElseThrow(()->new
+                        IllegalArgumentException("해당 게시글이 없습니다.id="+ id));
+
+        posts.update(requestDto.getTitle(),requestDto.getContent());
+
+        return id;
+    }
+
+    public PostsResponseDto findById(Long id){
+        Posts entity=postsRepository.findById(id)
+                .orElseThrow(()->new
+                        IllegalArgumentException("해당 게시글이 없습니다.id="+ id));
+
+        return new PostsResponseDto(entity);
+    }
+}
+
+```
 
 ## 3.5. JPA Auditing으로 생성시간/수정시간 자동화하기
 - entity: 생성, 수정시간 포함.
