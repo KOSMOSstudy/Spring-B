@@ -277,3 +277,281 @@ main.init();
 
 - index.js 호출 코드에서 절대 경로(/) 로 시작
     - 스프링부트에서 기본적으로 /src/main/resources/static 에 위치한 정적 파일들은 URL에서 /로 설정됨
+
+
+## 4.4  전체 조회 화면 만들기
+
+---
+
+앞서 만든 index.mustache UI 변경
+
+```html
+{{>layout/header}}
+
+	<h1> title </h1>
+	<div class="col-md-12">
+		<div class="row">
+			<div class="col-md-6">
+				<a href="/post/save" role="button" class="btn btn-primary"> 글 등록 </a>
+			</div>
+		<div>
+		<br>
+		<!-- 목록 출력 영역 -->
+		<table class="table table-horizontal table-bordered">
+			<thead class="thead-strong">
+			<tr>
+				<th> 게시글 번호 </th>
+				<th> 제목 </th>
+				<th> 작성자 </th>
+				<th> 최종 수정일 </th>
+			</tr>
+			</thead>
+			<tbody id="tbody">
+			{{#posts}}
+				<tr>
+					<td> {{id}} </td>
+					<td> {{title}} </td>
+					<td> {{author}} </td>
+					<td> {{modifiedDate}} </td>
+				</tr>
+			{{/posts}}
+			</tbody>
+		</table>
+	</div>
+{{>layout/footer}}
+```
+- {{#posts}} : posts 라는 List를 순회한다. (=for문)
+- {{ 변수명 }} :List에서 뽑아낸 객체의 필드. 예시) {{id}} 
+
+1. **Repository** 코드 작성
+
+```java
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import java.util.List;
+
+public interface PostsRepository extends JpaRepository<Posts, Long> {
+	@Query("SELECT p FROM Posts p ORDER BY p.id DESC")
+	List<Posts> findAllDesc();
+}
+```
+
+- **@Query** 사용하면 SpringDataJpa에서 제공하지 않는 메소드 구현 가능! (가독성도 더 좋다)
+2. Service 코드 작성 (PostsService)
+
+```java
+...
+import java.util.List;
+import java.util.stream.Collectors;
+
+@RequiredArgsConstructor
+@Service
+public class PostsService {
+	private final PostsRepository postsRepository;
+	...
+	@Transactional(readOnly = true)
+	public List<PostsListResponseDto> findAllDesc() {
+		return postRepository.findAllDesc().stream()
+					.map(PostsListResponseDto::new)
+					.collect(Collectors.toList());
+	}
+}
+```
+
+- readOnly = true 는 트랜잭션 범위는 유지하되 조회 기능만 남겨서 속도 개선
+    ⇒ 등록, 수정, 삭제 기능 없는 서비스 메소드에서 사용하는 것을 추천
+- PostsListResponseDto 생성
+```java
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.Getter;
+import java.time.LocalDateTime;
+
+@Getter
+public class PostsListResponseDto {
+	private Long id;
+	private String title;
+	private String author;
+	private LocalDateTime modifiedDate;
+
+	public PostsListResponseDto(Posts entity) {
+		this.id = entity.getId();
+		this.title = entity.getTitle();
+		this.author = entity.getAuthor();
+		this.modifiedDate = entity.getModifiedDate();
+	}
+}
+```
+3. **Controller** 코드 변경
+
+```java
+import org.springframework.ui.Model;
+
+@RequiredArgsConstructor
+@Controller
+public class IndexController {
+	private final PostsService postsService;
+
+	@GetMapping("/")
+	public String index(Model model) {
+		model.addAttribute("posts", postsService.findAllDesc());
+		return "index";
+	}
+}
+```
+
+- Model : 서버 템플릿 엔진에서 사용할 수 있는 객체 저장. (postsService.findAllDesc()로 가져온 결과를 posts로 index.mustache에 전달)
+
+
+## 4.5  게시글 수정, 삭제 화면 만들기
+
+---
+
+1. 게시글 수정
+- 수정 API (3.4 절에서 생성함) → 해당 API로 요청
+
+```java
+public class PostsApiController {
+	...
+	@PutMapping("/api/v1/posts/{id}")
+	public Long update(@PathVariable Long id, @RequestBody PostsUpdateRequestDto request DTO) {
+		return postsService.update(id, requestDto);
+	}
+}
+```
+
+- 게시글 수정 화면 머스테치 파일 생성
+
+```html
+{{>layout/header}}
+
+<h1> 게시글 수정 </h1>
+
+<div class="col-md-12">
+	<div class="col-md-4">
+		<form>
+			<div class="form-group">
+				<label for="id"> 글 번호 </label>
+				<input type="text" class="form-control" id="id" value="{{post.id}}" readonly>
+			</div>
+			<div class="form-group">
+				<label for="title"> 제목 </label>
+				<input type="text" class="form-control" id="title" value="{{post.title}}">
+			</div>
+			<div class="form-group">
+				<label for="author"> 작성자 </label>
+				<input type="text" class="form-control" id="author" value="{{post.author}}" readonly>
+			</div>
+			<div class="form-group">
+				<label for="content"> 내용 </label>
+				<textarea class="form-control" id="content"> {{post.id}} </textarea>
+			</div>
+		</form>
+		<a href="/" role="button" class="btn btn-secondary"> 취소 </a>
+		<button type="button" class="btn btn-primary" id="btn-update"> 수정 완료 </button>
+	</div>
+<div>
+
+{{>layout/footer}}
+```
+
+- {{post.id}} : post 클래스의 id에 대한 접근
+- readonly: input 태그에 읽기 가능만 허용하는 속성 (id, author 수정 불가능하도록)
+
+- index.js 파일에 update function 추가 → btn-update 버튼 클릭하면 update 기능 호출
+
+```jsx
+var main = {
+	init : funtion () {
+		var _this = this;
+		...
+		$('#btn-update').on('click', function () {
+			_this.update();
+		});
+	},
+	save : function () {
+	...
+	},
+	update : function () {
+		var data = {
+			title: $('#title').val(),
+			content: $('content').val()
+		};
+
+		var id = $(#'id').val();
+
+		$.ajax({
+			type: 'PUT',
+			url: '/api/v1/posts/' +id,
+			dataType: 'json',
+			contentType: 'application/json; charset=utf-8',
+			data: JSON.stringify(data)
+		}).done(function() {
+			alert('글이 수정되었습니다.');
+			window.location.href = '/';
+		}).fail(function (error) {
+			alert(JSON.stringift(error));
+		});
+	}
+};
+
+main.init();
+```
+
+- 전체 목록에서 수정 페이지로 이동할 수 있게 **index.mustache** 수정
+
+```html
+<tbody id="tbody">
+{{#posts}}
+	<tr>
+		<td> {{id}} </td>
+		<td> <a href="/posts/update/{{id}}"> {{title}} </a> </td>
+		<td> {{author}} </td>
+		<td> {{modifiedDate}} </td>
+	</tr>
+{{/posts}}
+</tbody>
+```
+
+- **IndexController**에 메소드 추가
+
+```java
+public class IndexController {
+	...
+	@GetMapping("/posts/update/{id}")
+	public String postsUpdate(@PathVariable Long id, Model model) {
+		PostsResponseDto dto = postsService.findById(id);
+		model.addAttribute("post", dto);
+		return "posts-update";
+	}
+}
+```
+1. 게시글 삭제
+- 삭제 API (PostsService)
+
+```jsx
+...
+public class PostsService {
+	...
+	@Transactional
+	public void delete (Long id) {
+		Posts posts = postsRepository.findById(id).orElseThrow(() 
+			-> new IllegalArgumentException("해당 게시글이 없습니다. id=" + id));
+		postsRepository.delete(posts);
+	}
+	...
+}
+```
+
+- Controller (PostsApiController)
+
+```jsx
+...
+public class PostsApiController {
+	...
+	@DeleteMapping("/api/v1/posts/{id}")
+	public Long delete(@PathVariable Long id) {
+		postsService.delete(id);
+		return id;
+	}
+}
+```
